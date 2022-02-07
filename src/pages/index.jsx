@@ -2,45 +2,41 @@ import React from "react";
 import qs from "qs";
 import Search from "./components/Search";
 import Table from "./components/Table";
-import { cleanObject } from "../utils";
+import { cleanObject, useDebounce, useMount } from "../utils";
 const baseUrl = process.env.REACT_APP_BASE_URL;
 
 const List = () => {
-  const initialState = {
-    name: "",
-    users: [],
+  const [param, setParam] = React.useState({
     personId: "",
+    name: "",
+  });
+  const updateParam = (data) => {
+    setParam({ ...param, ...data });
   };
   const [list, setList] = React.useState([]);
-  const [state, setState] = React.useState(initialState);
-  const updateState = (data) => {
-    setState({ ...state, ...data });
-  };
+  const [users, setUsers] = React.useState([]);
+  const debounceParam = useDebounce(param, 2000);
   React.useEffect(() => {
-    fetch(
-      `${baseUrl}/projects?${qs.stringify(
-        cleanObject({ name: state.name, personId: state.personId })
-      )}`
-    ).then(async (response) => {
-      debugger;
-      if (response.ok) {
-        const list = await response.json();
-        setList(list);
+    fetch(`${baseUrl}/projects?${qs.stringify(cleanObject(param))}`).then(
+      async (response) => {
+        if (response.ok) {
+          const list = await response.json();
+          setList(list);
+        }
       }
-    });
-  }, [state.name, state.personId]);
-
-  React.useEffect(() => {
+    );
+  }, [debounceParam]);
+  useMount(() => {
     fetch(`${baseUrl}/users`).then(async (response) => {
       if (response.ok) {
-        updateState({ users: await response.json() });
+        setUsers(await response.json());
       }
     });
-  }, []);
+  });
   return (
     <>
-      <Search update={updateState} state={state}></Search>
-      <Table list={list} users={state.users}></Table>
+      <Search update={updateParam} param={param} users={users}></Search>
+      <Table list={list} users={users}></Table>
     </>
   );
 };
